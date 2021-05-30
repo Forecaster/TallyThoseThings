@@ -4,7 +4,7 @@ Capabilities::load(array(Capabilities::$BASE_MODULE, Capabilities::$COLLAPSIBLE_
 
 class ModuleDefault extends BaseModule {
 	public static function GetTitle($page_title = "") {
-		return parent::GetTitle("Default Page");
+		return parent::GetTitle("");
 	}
 
 	public static function Pre() {
@@ -10926,9 +10926,9 @@ class ModuleDefault extends BaseModule {
 			"Reset to 0",
 			"Target count",
 			"Target total",
+			"Persistence/Saving",
 		);
 		$missing_items = array(
-			"Persistence/Saving",
 			"Sum of counters",
 			"Sum of groups",
 			"Weight/multiply counter by n before sum"
@@ -10953,7 +10953,7 @@ class ModuleDefault extends BaseModule {
 				</div>
 				<div id="settings">
 					<h5>Settings</h5>
-					<table border="0">
+					<table border="0" id="settings_table">
 						<tr>
 							<td>Increment by</td>
 							<td><input id="increment_by" type="number" value="1" style="width: 60px;" onchange="update(find_counter(this))" /></td>
@@ -11037,21 +11037,41 @@ class ModuleDefault extends BaseModule {
 				return element;
 			}
 
-			function new_group() {
+			function new_group(title = null, counters = 1) {
 				let group = group_template.cloneNode(true);
-				group.querySelector("#title").innerText = "Group " + (container.children.length +1);
+				if (title === null)
+					title = "Group " + (container.children.length +1);
+				group.querySelector("#title").innerText = title;
 				container.appendChild(group);
 
-				new_counter(group);
+				for (let i = 0; i < counters; i++)
+					new_counter(group);
+				return group;
 			}
 
-			function new_counter(group = null) {
+			function new_counter(group = null, title = null, value = null, settings = null) {
 				if (typeof group === "undefined" || group === null)
 					group = container.children[0];
 				group = group.querySelector("#counter_container");
 				let counter = counter_template.cloneNode(true);
-				counter.querySelector("#title").innerText = "Counter " + (group.children.length +1);
+				console.info(title);
+				if (title === null)
+					title = "Counter " + (group.children.length +1);
+				if (value === null)
+					value = 0;
+				counter.querySelector("#title").innerText = title;
+				counter.querySelector("#count").innerText = value;
+				if (settings !== null) {
+					for (let set in settings) {
+						let setting = counter.querySelector("input#" + set);
+						if (setting.getAttribute("type") === "checkbox")
+							setting.checked = settings[set];
+						else
+							setting.value = settings[set];
+					}
+				}
 				group.appendChild(counter);
+				return counter;
 			}
 
 			function toggle_counter_settings(counter) {
@@ -11141,13 +11161,14 @@ class ModuleDefault extends BaseModule {
 					value += " / " + target;
 				display.innerText = value;
 				counter_target(counter);
+				save();
 			}
 
 			function update(counter) {
 				const display = counter.querySelector("#count").innerText;
 				set(counter, display);
 			}
-			
+
 			function check_reached_target(counter) {
 				const display = counter.querySelector("#count");
 				const target = parseFloat(get_counter_setting(counter, "target_value").value);
@@ -11168,7 +11189,7 @@ class ModuleDefault extends BaseModule {
 				}
 				return false;
 			}
-			
+
 			function counter_target(counter) {
 				if (check_reached_target(counter))
 					counter.querySelector("#count").classList.add("target");
@@ -11184,7 +11205,64 @@ class ModuleDefault extends BaseModule {
 				group.parentElement.removeChild(group);
 			}
 
-			new_group();
+			function save() {
+				let data = [];
+				for (let g = 0; g < container.children.length; g++) {
+					let group = container.children[g];
+					let group_data = {
+						title: group.querySelector("#title").innerText,
+						counters: []
+					};
+					const counter_container = group.querySelector("#counter_container");
+					for (let y = 0; y < counter_container.children.length; y++) {
+						let counter = counter_container.children[y];
+						let settings_table = counter.querySelector("#settings_table > tbody");
+						let settings_data = {};
+						for (let s = 0; s < settings_table.children.length; s++) {
+							let row = settings_table.children[s];
+							let setting_element = row.children[1].children[0];
+							if (setting_element.getAttribute("type") === "checkbox")
+								settings_data[setting_element.id] = setting_element.checked;
+							else
+								settings_data[setting_element.id] = setting_element.value;
+						}
+						let counter_data = {
+							title: counter.querySelector("#title").innerText,
+							settings: settings_data,
+							value: counter.querySelector("#count").innerText
+						}
+						group_data.counters.push(counter_data);
+					}
+					data.push(group_data);
+				}
+				window.localStorage["counterData"] = JSON.stringify(data);
+			}
+
+			function load() {
+				clear_groups();
+				if (typeof window.localStorage["counterData"] !== "undefined" && window.localStorage["counterData"] !== null && window.localStorage["counterData"] !== "") {
+					let data = JSON.parse(window.localStorage["counterData"]);
+					console.info(data);
+					for (let g = 0; g < data.length; g++) {
+						let group = data[g];
+						let group_element = new_group(group.title, 0);
+						for (let c = 0; c < group.counters.length; c++) {
+							let counter = group.counters[c];
+							console.info(counter);
+							let counter_element = new_counter(group_element, counter.title, counter.value, counter.settings);
+							counter_target(counter_element);
+						}
+					}
+				} else {
+					new_group();
+				}
+			}
+
+			function clear_groups() {
+				container.innerHTML = "";
+			}
+
+			load();
 		</script>
 		<?
 	}

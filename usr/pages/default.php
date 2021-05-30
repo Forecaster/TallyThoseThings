@@ -16,6 +16,10 @@ class ModuleDefault extends BaseModule {
 	public static function Content1() {
 		?>
 		<style>
+			body {
+				font-family : Consolas, sans-serif;
+			}
+
 			#group_template {
 				display : none;
 			}
@@ -93,7 +97,6 @@ class ModuleDefault extends BaseModule {
 		<p>This is a clean but functional tally counter for counting anything you can imagine!</p>
 		<p>This is a self-contained application which means you can save this page as an html file and run it locally in a browser.</p>
 		<p>Click on a group or counter title to edit the name.</p>
-		<p>If you have questions, bug reports or feature suggestions you can submit them to the <a href="https://github.com/Forecaster/TallyThoseThings/issues">GitHub repository</a>, or email me at <a href="mailto:feedback@towerofawesome.org">feedback@towerofawesome.org</a>. Put <code>TallyThoseThings</code> in the subject please!</p>
 		<?
 		$items = array(
 			"Counting",
@@ -106,16 +109,21 @@ class ModuleDefault extends BaseModule {
 			"Target count",
 			"Target total",
 			"Persistence/Saving",
-		);
-		$missing_items = array(
-			"Sum of counters",
+			"Sum of counters within group",
 			"Sum of groups",
 			"Weight/multiply counter by n before sum"
 		);
-		$section1 = new CollapsibleSection("Features", "<ul><li>" . implode("</li><li>", $items) . "</li></ul>", "h3");
+		$missing_items = array(
+			"Export/import",
+			"Re-order counters & groups",
+			"Move counters between groups"
+		);
+		$section1 = new CollapsibleSection("Features", "<ul><li>" . implode("</li><li>", $items) . "</li></ul>", "h4");
 		echo $section1->GetHTML();
-		$section2 = new CollapsibleSection("Missing features", "<ul><li>" . implode("</li><li>", $missing_items) . "</li></ul>", "h3");
+		$section2 = new CollapsibleSection("Missing features", "<ul><li>" . implode("</li><li>", $missing_items) . "</li></ul>", "h4");
 		echo $section2->GetHTML();
+		$feedback = new CollapsibleSection("Feedback", "<p>If you have questions, bug reports or feature suggestions you can submit them to the <a href='https://github.com/Forecaster/TallyThoseThings/issues'>GitHub repository</a>, or email me at <a href='mailto:feedback@towerofawesome.org'>feedback@towerofawesome.org</a>. Put <code>TallyThoseThings</code> in the subject please!</p>", "h4");
+		echo $feedback->GetHTML();
 		?>
 		<div id="counter_template">
 			<div class="counter">
@@ -181,18 +189,23 @@ class ModuleDefault extends BaseModule {
 				</div>
 				<div style="margin-top: 4px;">
 					<span class="btn btn-danger" title="Delete group" onclick="delete_group(find_group(this));">Delete group</span>
+					<span class="btn btn-success" title="Sum group" onclick="sum_group(find_group(this), false);">Sum group</span>
 					<span class="btn btn-primary" title="Add counter" onclick="new_counter(find_group(this));">Add counter</span>
 				</div>
 			</div>
 		</div>
-		<div id="group_container"></div>
-		<div style="margin-top: 10px;">
+		<div id="group_container" style="margin-top: 30px;"></div>
+		<div style="margin-top: 40px;">
 			<span class="btn btn-primary" onclick="new_group();">Add group</span>
+			<span class="btn btn-success" onclick="sum_groups();">Sum groups</span>
 		</div>
+
+		<textarea id="summary_output" style="width: 100%; height: 240px; margin-top: 18px;" title="Summary output" placeholder="When request a summary the result will appear here!"></textarea>
 		<script>
 			const group_template = document.getElementById("group_template").children[0];
 			const counter_template = document.getElementById("counter_template").children[0];
 			const container = document.getElementById("group_container");
+			const summary_output = document.getElementById("summary_output");
 
 			function find_counter(element) {
 				while (element.className !== "counter") {
@@ -343,7 +356,7 @@ class ModuleDefault extends BaseModule {
 			}
 
 			function update(counter) {
-				const display = counter.querySelector("#count").innerText;
+				const display = counter.querySelector("#count").innerText.split(" / ")[0];
 				set(counter, display);
 			}
 
@@ -436,6 +449,55 @@ class ModuleDefault extends BaseModule {
 
 			function clear_groups() {
 				container.innerHTML = "";
+			}
+
+			function sum() {
+
+			}
+
+			function sum_groups() {
+				let total = 0;
+				let val = "";
+				for (let i = 0; i < container.children.length; i++) {
+					let ret = sum_group(container.children[i]);
+					total += ret[0];
+					val += ret[1];
+				}
+				summary_output.value = val + "Total: " + total;
+			}
+
+			function sum_group(group, return_result = true) {
+				let val = "";
+				let counters = group.querySelector("#counter_container").children;
+				let sum = 0;
+				let longest = 0;
+				let entries = [];
+				for (let c = 0; c < counters.length; c++) {
+					let title = counters[c].querySelector("#title").innerText;
+					let ret = sum_counter(counters[c]);
+					longest = Math.max(longest, title.length);
+					entries.push({ title: title, value: ret });
+					sum += ret;
+				}
+				for (let i = 0; i < entries.length; i++) {
+					let title = entries[i].title;
+					val += "  " + title + " ".repeat(longest - title.length) + " = " + entries[i].value + "\n";
+				}
+				val += "\n" + group.querySelector("#title").innerText + " = " + sum + "\n==================================\n\n";
+				if (return_result)
+					return [sum, val];
+				else
+					summary_output.value = val;
+			}
+
+			function sum_counter(counter) {
+				const value = parseFloat(counter.querySelector("#count").innerText);
+				const multiplier = parseFloat(counter.querySelector("#weight_multiplier").value);
+				if (!isNaN(value) && !isNaN(multiplier))
+					return value * multiplier;
+				else if (!isNaN(value))
+					return value;
+				return 0;
 			}
 
 			load();

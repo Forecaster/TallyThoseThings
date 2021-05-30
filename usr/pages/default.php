@@ -10914,7 +10914,7 @@ class ModuleDefault extends BaseModule {
 		<p>This is a clean but functional tally counter for counting anything you can imagine!</p>
 		<p>This is a self-contained application which means you can save this page as an html file and run it locally in a browser.</p>
 		<p>Click on a group or counter title to edit the name.</p>
-		<p>If you have questions, bug reports or feature suggestions you can email me at <a href="mailto:feedback@towerofawesome.org">feedback@towerofawesome.org</a>. Put <code>TallyThoseThings</code> in the subject please!</p>
+		<p>If you have questions, bug reports or feature suggestions you can submit them to the <a href="https://github.com/Forecaster/TallyThoseThings/issues">GitHub repository</a>, or email me at <a href="mailto:feedback@towerofawesome.org">feedback@towerofawesome.org</a>. Put <code>TallyThoseThings</code> in the subject please!</p>
 		<?
 		$items = array(
 			"Counting",
@@ -10985,6 +10985,10 @@ class ModuleDefault extends BaseModule {
 						<tr>
 							<td>Exact target</td>
 							<td><input id="target_exact" type="checkbox" /></td>
+						</tr>
+						<tr>
+							<td>Weight multiplier</td>
+							<td><input id="weight_multiplier" type="number" value="" style="width: 60px;" onchange="update(find_counter(this))" /></td>
 						</tr>
 					</table>
 				</div>

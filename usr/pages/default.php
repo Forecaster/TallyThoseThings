@@ -195,9 +195,7 @@ class ModuleDefault extends BaseModule {
 			const container = document.getElementById("group_container");
 
 			function find_counter(element) {
-				console.info(element);
 				while (element.className !== "counter") {
-					console.info(element);
 					element = element.parentElement;
 					if (element === null) {
 						console.error("No counter found.");
@@ -208,9 +206,7 @@ class ModuleDefault extends BaseModule {
 			}
 
 			function find_group(element) {
-				console.info(element);
 				while (element.className !== "group") {
-					console.info(element);
 					element = element.parentElement;
 					if (element === null) {
 						console.error("No group found.");
@@ -237,7 +233,6 @@ class ModuleDefault extends BaseModule {
 					group = container.children[0];
 				group = group.querySelector("#counter_container");
 				let counter = counter_template.cloneNode(true);
-				console.info(title);
 				if (title === null)
 					title = "Counter " + (group.children.length +1);
 				if (value === null)
@@ -425,13 +420,11 @@ class ModuleDefault extends BaseModule {
 				clear_groups();
 				if (typeof window.localStorage["counterData"] !== "undefined" && window.localStorage["counterData"] !== null && window.localStorage["counterData"] !== "") {
 					let data = JSON.parse(window.localStorage["counterData"]);
-					console.info(data);
 					for (let g = 0; g < data.length; g++) {
 						let group = data[g];
 						let group_element = new_group(group.title, 0);
 						for (let c = 0; c < group.counters.length; c++) {
 							let counter = group.counters[c];
-							console.info(counter);
 							let counter_element = new_counter(group_element, counter.title, counter.value, counter.settings);
 							counter_target(counter_element);
 						}

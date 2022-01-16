@@ -28,12 +28,16 @@ class ModuleDefault extends BaseModule {
 				display : none;
 			}
 
-			.subtle_input {
+			.subtle_input,.subtle_input_dark {
 				background    : none;
 				border        : none;
 				margin-bottom : 6px;
 				color         : white;
 				text-align    : center;
+			}
+
+			.subtle_input_dark {
+				color: black;
 			}
 
 			.group #title {
@@ -132,7 +136,7 @@ class ModuleDefault extends BaseModule {
 				<div>
 					<span class="btn btn-danger" title="Delete counter" onclick="delete_counter(find_counter(this));"> X </span>
 					<span class="btn btn-primary" title="Decreemnt counter" onclick="decrement(find_counter(this));"> - </span>
-					<span id="count" title="Set value">0</span>
+					<span id="count" title="Set value" onclick="toggle_counter_value_set(find_counter(this))">0</span>
 					<span class="btn btn-primary" title="Increment counter" onclick="increment(find_counter(this));"> + </span>
 					<span class="sep"></span>
 					<span class="btn btn-danger" title="Reset counter" onclick="reset(find_counter(this));"> ↺ </span>
@@ -172,6 +176,10 @@ class ModuleDefault extends BaseModule {
 						<tr>
 							<td>Exact target</td>
 							<td><input id="target_exact" type="checkbox" /></td>
+						</tr>
+						<tr>
+							<td>Show difference</td>
+							<td><input id="target_display_diff" type="checkbox" /></td>
 						</tr>
 						<tr>
 							<td>Weight multiplier</td>
@@ -255,10 +263,14 @@ class ModuleDefault extends BaseModule {
 				if (settings !== null) {
 					for (let set in settings) {
 						let setting = counter.querySelector("input#" + set);
-						if (setting.getAttribute("type") === "checkbox")
-							setting.checked = settings[set];
-						else
-							setting.value = settings[set];
+						if (setting == null) {
+							console.warn("Invalid setting key : '" + set + "'");
+						} else {
+							if (setting.getAttribute("type") === "checkbox")
+								setting.checked = settings[set];
+							else
+								setting.value = settings[set];
+						}
 					}
 				}
 				group.appendChild(counter);
@@ -279,6 +291,21 @@ class ModuleDefault extends BaseModule {
 				return counter.querySelector("#settings").querySelector("#" + setting);
 			}
 
+			function get_counter_setting_value(counter, setting) {
+				const counterSetting = get_counter_setting(counter, setting);
+				if (counterSetting != null) {
+					if (counterSetting.tagName === "INPUT") {
+						if (counterSetting.type === "text")
+							return counterSetting.value;
+						else if (counterSetting.type === "number")
+							return parseFloat(counterSetting.value);
+						else if (counterSetting.type === "checkbox")
+							return counterSetting.checked;
+					}
+				}
+				return null;
+			}
+
 			function toggle_counter_title_set(counter) {
 				const title = counter.querySelector("#title");
 
@@ -290,7 +317,7 @@ class ModuleDefault extends BaseModule {
 						title.innerText = event.target.value;
 					}
 					input.onblur = counter_title_set_stop;
-					input.onkeydown = function(event) { if (event.key == "Enter") counter_title_set_stop(event); };
+					input.onkeydown = function(event) { if (event.key === "Enter") counter_title_set_stop(event); };
 					input.value = title.innerText;
 
 					title.innerText = "";
@@ -309,7 +336,7 @@ class ModuleDefault extends BaseModule {
 					title.innerText = event.target.value;
 				}
 				input.onblur = group_title_set_stop;
-				input.onkeydown = function(event) { if (event.key == "Enter") group_title_set_stop(event); };
+				input.onkeydown = function(event) { if (event.key === "Enter") group_title_set_stop(event); };
 				input.value = title.innerText;
 
 				title.innerText = "";
@@ -317,10 +344,36 @@ class ModuleDefault extends BaseModule {
 				input.focus();
 			}
 
+			function toggle_counter_value_set(counter) {
+				const count = counter.querySelector("#count");
+
+				if (count.children.length === 0) {
+					let input = document.createElement("input");
+					input.className = "subtle_input_dark";
+					input.style.width = "100%";
+					input.type = "number";
+					let counter_value_set_stop = function() {
+						count.innerHTML = "";
+						let val = input.value.trim();
+						if (val !== "")
+							set(counter, val);
+					}
+					input.onblur = counter_value_set_stop;
+					input.onkeydown = function(event) { if (event.key === "Enter") counter_value_set_stop(event); };
+					const split = count.innerText.split(" / ");
+					input.value = split[0];
+
+					count.innerText = "";
+					count.appendChild(input);
+					input.focus();
+					input.select();
+				}
+			}
+
 			function increment(counter) {
 				const display = counter.querySelector("#count");
-				const inc = parseFloat(get_counter_setting(counter, "increment_by").value);
-				let max = parseFloat(get_counter_setting(counter, "max_value").value);
+				const inc = get_counter_setting_value(counter, "increment_by");
+				let max = get_counter_setting_value(counter, "max_value");
 				if (isNaN(max))
 					max = Number.MAX_VALUE;
 				if (!isNaN(inc))
@@ -329,8 +382,8 @@ class ModuleDefault extends BaseModule {
 
 			function decrement(counter) {
 				const display = counter.querySelector("#count");
-				const dec = parseFloat(get_counter_setting(counter, "decrement_by").value);
-				let min = parseFloat(get_counter_setting(counter, "min_value").value);
+				const dec = get_counter_setting_value(counter, "decrement_by");
+				let min = get_counter_setting_value(counter, "min_value");
 				if (isNaN(min))
 					min = -9999999;
 				if (!isNaN(dec))
@@ -338,7 +391,7 @@ class ModuleDefault extends BaseModule {
 			}
 
 			function reset(counter) {
-				const res = parseFloat(get_counter_setting(counter, "reset_to").value);
+				const res = get_counter_setting_value(counter, "reset_to");
 				if (!isNaN(res))
 					set(counter, res);
 				else
@@ -347,9 +400,20 @@ class ModuleDefault extends BaseModule {
 
 			function set(counter, value) {
 				const display = counter.querySelector("#count");
-				const target = get_counter_setting(counter, "target_value").value;
-				if (!isNaN(parseFloat(target)))
+				const target = get_counter_setting_value(counter, "target_value");
+				const display_diff = get_counter_setting_value(counter, "target_display_diff");
+				let diff = NaN;
+				if (display_diff) {
+					console.debug(value + " - " + target);
+					diff = value - target;
+					if (diff > 0)
+						diff = "+" + diff;
+				}
+				if (!isNaN(target))
 					value += " / " + target;
+				console.info("display_diff: " + display_diff);
+				if (!isNaN(diff) && diff !== 0)
+					value += " (" + diff + ")";
 				display.innerText = value;
 				counter_target(counter);
 				save();
@@ -362,13 +426,13 @@ class ModuleDefault extends BaseModule {
 
 			function check_reached_target(counter) {
 				const display = counter.querySelector("#count");
-				const target = parseFloat(get_counter_setting(counter, "target_value").value);
-				const count_down = get_counter_setting(counter, "target_value_down").checked;
-				const exact_target = get_counter_setting(counter, "target_exact").checked;
+				const target = get_counter_setting_value(counter, "target_value");
+				const count_down = get_counter_setting_value(counter, "target_value_down");
+				const exact_target = get_counter_setting_value(counter, "target_exact");
 
 				if (!isNaN(target)) {
 					if (exact_target) {
-						if (parseFloat(display.innerText) == target)
+						if (parseFloat(display.innerText) === target)
 							return true;
 					} else if (count_down) {
 						if (parseFloat(display.innerText) <= target)

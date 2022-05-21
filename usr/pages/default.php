@@ -3,8 +3,11 @@ require_once __DIR__ . "/../../internal/Capabilities.php";
 Capabilities::load(array(Capabilities::$BASE_MODULE, Capabilities::$COLLAPSIBLE_SECTION));
 
 class ModuleDefault extends BaseModule {
+
+	static $version = "v1.2";
+
 	public static function GetTitle($page_title = "") {
-		return parent::GetTitle("");
+		return parent::GetTitle("TallyThoseThings " . self::$version);
 	}
 
 	public static function Pre() {
@@ -28,7 +31,7 @@ class ModuleDefault extends BaseModule {
 				display : none;
 			}
 
-			.subtle_input,.subtle_input_dark {
+			.subtle_input, .subtle_input_dark {
 				background    : none;
 				border        : none;
 				margin-bottom : 6px;
@@ -37,7 +40,7 @@ class ModuleDefault extends BaseModule {
 			}
 
 			.subtle_input_dark {
-				color: black;
+				color : black;
 			}
 
 			.group #title {
@@ -68,7 +71,7 @@ class ModuleDefault extends BaseModule {
 			}
 
 			.counter #settings {
-				display: none;
+				display : none;
 			}
 
 			.counter #title {
@@ -96,11 +99,36 @@ class ModuleDefault extends BaseModule {
 				border           : 1px solid green;
 				background-color : lightgreen;
 			}
+
+			.msg_output_success, .msg_output_fail {
+				border-radius : 5px;
+				padding       : 5px;
+				margin-top    : 10px;
+			}
+
+			.msg_output_success {
+				background-color : forestgreen;
+				color            : black;
+			}
+
+			.msg_output_fail {
+				background-color : darkred;
+				color            : white;
+			}
 		</style>
-		<h1>TallyThoseThings</h1>
+		<h1>TallyThoseThings <?= self::$version ?></h1>
 		<p>This is a clean but functional tally counter for counting anything you can imagine!</p>
-		<p>This is a self-contained application which means you can save this page as an html file and run it locally in a browser.</p>
+		<p>This is a self-contained application which means you can save this page as an html file and run it locally in a browser. (Right-click page -> Save as...)</p>
 		<p>Click on a group or counter title to edit the name.</p>
+		<p>Hold ctrl when clicking + or - to increment/decrement by 10.</p>
+		<div style="background-color: orange; color: black; border-radius: 10px; padding: 5px;">
+			<b>Some notes about data storage!</b>
+			<ul>
+				<li>No data is ever sent to the server</li>
+				<li>Counters are stored in Browser Storage (may be volatile)</li>
+				<li>To reliably store data use JSON export/import (also to transfer data between browsers/devices)</li>
+			</ul>
+		</div>
 		<?
 		$items = array(
 			"Counting",
@@ -115,10 +143,12 @@ class ModuleDefault extends BaseModule {
 			"Persistence/Saving",
 			"Sum of counters within group",
 			"Sum of groups",
-			"Weight/multiply counter by n before sum"
+			"Weight/multiply counter by n before sum",
+			"Settings tooltips",
+			"Hold ctrl to always increment/decrement by 10",
+			"JSON export/import"
 		);
 		$missing_items = array(
-			"Export/import",
 			"Re-order counters & groups",
 			"Move counters between groups"
 		);
@@ -135,54 +165,54 @@ class ModuleDefault extends BaseModule {
 				<div id="title" title="Edit title" onclick="toggle_counter_title_set(find_counter(this));">Counter</div>
 				<div>
 					<span class="btn btn-danger" title="Delete counter" onclick="delete_counter(find_counter(this));"> X </span>
-					<span class="btn btn-primary" title="Decreemnt counter" onclick="decrement(find_counter(this));"> - </span>
+					<span class="btn btn-primary" title="Decreemnt counter" onclick="decrement(find_counter(this), event);"> - </span>
 					<span id="count" title="Set value" onclick="toggle_counter_value_set(find_counter(this))">0</span>
-					<span class="btn btn-primary" title="Increment counter" onclick="increment(find_counter(this));"> + </span>
+					<span class="btn btn-primary" title="Increment counter" onclick="increment(find_counter(this), event);"> + </span>
 					<span class="sep"></span>
 					<span class="btn btn-danger" title="Reset counter" onclick="reset(find_counter(this));"> ↺ </span>
 					<span class="btn btn-danger" title="Zero counter" onclick="set(find_counter(this), 0);"> 0 </span>
 				</div>
 				<div id="settings">
-					<h5>Settings</h5>
+					<div style="border-bottom: 1px solid white; font-size: 18pt; margin-bottom: 8px;">Settings</div>
 					<table border="0" id="settings_table">
-						<tr>
+						<tr title="Every time the + button is pressed the count increases by this value.">
 							<td>Increment by</td>
 							<td><input id="increment_by" type="number" value="1" style="width: 60px;" onchange="update(find_counter(this))" /></td>
 						</tr>
-						<tr>
+						<tr title="Every time the - button is pressed the count decreases by this value.">
 							<td>Decrement by</td>
 							<td><input id="decrement_by" type="number" value="1" style="width: 60px;" onchange="update(find_counter(this))" /></td>
 						</tr>
-						<tr>
+						<tr title="When the ↺ button is pressed the count is set to this value.">
 							<td>Reset to</td>
 							<td><input id="reset_to" type="number" value="0" style="width: 60px;" onchange="update(find_counter(this))" /></td>
 						</tr>
-						<tr>
+						<tr title="The count cannot go below this value. Blank means no limit.">
 							<td>Min value</td>
 							<td><input id="min_value" type="number" value="" style="width: 60px;" onchange="update(find_counter(this))" /></td>
 						</tr>
-						<tr>
+						<tr title="The count cannot go above this value. Blank means no limit.">
 							<td>Max value</td>
 							<td><input id="max_value" type="number" value="" style="width: 60px;" onchange="update(find_counter(this))" /></td>
 						</tr>
-						<tr>
+						<tr title="Target value is shown to the right of count. Count field turns green when at or exceeding target.">
 							<td>Target value</td>
 							<td><input id="target_value" type="number" value="" style="width: 60px;" onchange="update(find_counter(this))" /></td>
 						</tr>
-						<tr>
+						<tr title="Count field turns green when at or below target instead.">
 							<td>Count down to target</td>
-							<td><input id="target_value_down" type="checkbox" /></td>
+							<td><input id="target_value_down" type="checkbox" onchange="update(find_counter(this))" /></td>
 						</tr>
-						<tr>
+						<tr title="Count field turns green when at target value, neither above or below.">
 							<td>Exact target</td>
-							<td><input id="target_exact" type="checkbox" /></td>
+							<td><input id="target_exact" type="checkbox" onchange="update(find_counter(this))" /></td>
 						</tr>
-						<tr>
+						<tr title="Displays difference between count and target values.">
 							<td>Show difference</td>
-							<td><input id="target_display_diff" type="checkbox" /></td>
+							<td><input id="target_display_diff" type="checkbox" onchange="update(find_counter(this))" /></td>
 						</tr>
-						<tr>
-							<td>Weight multiplier</td>
+						<tr title="The value of each tally when summarizing counters.">
+							<td>Weight multiplier (value)</td>
 							<td><input id="weight_multiplier" type="number" value="" style="width: 60px;" onchange="update(find_counter(this))" /></td>
 						</tr>
 					</table>
@@ -208,12 +238,22 @@ class ModuleDefault extends BaseModule {
 			<span class="btn btn-success" onclick="sum_groups();">Sum groups</span>
 		</div>
 
-		<textarea id="summary_output" style="width: 100%; height: 240px; margin-top: 18px;" title="Summary output" placeholder="When request a summary the result will appear here!"></textarea>
+		<textarea id="summary_output" style="width: 100%; height: 240px; margin-top: 18px;" title="Summary output" placeholder="When you request a summary, the results will appear here!"></textarea>
+
+		<div style="margin-top: 30px;">
+			<span class="btn btn-outline-danger" style="background-color: black;" title="Imports counters from JSON string" onclick="load_json();">Import from JSON</span>
+			<span class="btn btn-outline-success" style="background-color: black;" title="Exports counters to JSON string" onclick="save_json();">Export to JSON</span>
+		</div>
+
+		<div id="load_save_json_result_msg"></div>
+		<textarea id="load_save_json" style="width: 50%; height: 200px; margin-top: 18px;" title="Load/save JSON field" placeholder="Paste JSON string here and click 'Load JSON'"></textarea>
 		<script>
 			const group_template = document.getElementById("group_template").children[0];
 			const counter_template = document.getElementById("counter_template").children[0];
 			const container = document.getElementById("group_container");
 			const summary_output = document.getElementById("summary_output");
+			const load_save_json = document.getElementById("load_save_json");
+			const load_save_json_result_msg = document.getElementById("load_save_json_result_msg");
 
 			function find_counter(element) {
 				while (element.className !== "counter") {
@@ -370,9 +410,11 @@ class ModuleDefault extends BaseModule {
 				}
 			}
 
-			function increment(counter) {
+			function increment(counter, event = null) {
 				const display = counter.querySelector("#count");
-				const inc = get_counter_setting_value(counter, "increment_by");
+				let inc = get_counter_setting_value(counter, "increment_by");
+				if (event != null && event.ctrlKey)
+					inc = 10;
 				let max = get_counter_setting_value(counter, "max_value");
 				if (isNaN(max))
 					max = Number.MAX_VALUE;
@@ -382,7 +424,9 @@ class ModuleDefault extends BaseModule {
 
 			function decrement(counter) {
 				const display = counter.querySelector("#count");
-				const dec = get_counter_setting_value(counter, "decrement_by");
+				let dec = get_counter_setting_value(counter, "decrement_by");
+				if (event != null && event.ctrlKey)
+					dec = 10;
 				let min = get_counter_setting_value(counter, "min_value");
 				if (isNaN(min))
 					min = -9999999;
@@ -404,14 +448,14 @@ class ModuleDefault extends BaseModule {
 				const display_diff = get_counter_setting_value(counter, "target_display_diff");
 				let diff = NaN;
 				if (display_diff) {
-					console.debug(value + " - " + target);
+					// console.debug(value + " - " + target);
 					diff = value - target;
 					if (diff > 0)
 						diff = "+" + diff;
 				}
 				if (!isNaN(target))
 					value += " / " + target;
-				console.info("display_diff: " + display_diff);
+				// console.info("display_diff: " + display_diff);
 				if (!isNaN(diff) && diff !== 0)
 					value += " (" + diff + ")";
 				display.innerText = value;
@@ -460,7 +504,7 @@ class ModuleDefault extends BaseModule {
 				group.parentElement.removeChild(group);
 			}
 
-			function save() {
+			function get_save_data() {
 				let data = [];
 				for (let g = 0; g < container.children.length; g++) {
 					let group = container.children[g];
@@ -490,24 +534,56 @@ class ModuleDefault extends BaseModule {
 					}
 					data.push(group_data);
 				}
-				window.localStorage["counterData"] = JSON.stringify(data);
+				return data;
 			}
 
-			function load() {
+			function load(data) {
 				clear_groups();
+				for (let g = 0; g < data.length; g++) {
+					let group = data[g];
+					let group_element = new_group(group.title, 0);
+					for (let c = 0; c < group.counters.length; c++) {
+						let counter = group.counters[c];
+						let counter_element = new_counter(group_element, counter.title, counter.value, counter.settings);
+						counter_target(counter_element);
+					}
+				}
+			}
+
+			function save_browser() {
+				window.localStorage["counterData"] = JSON.stringify(get_save_data());
+			}
+
+			function load_browser() {
 				if (typeof window.localStorage["counterData"] !== "undefined" && window.localStorage["counterData"] !== null && window.localStorage["counterData"] !== "") {
-					let data = JSON.parse(window.localStorage["counterData"]);
-					for (let g = 0; g < data.length; g++) {
-						let group = data[g];
-						let group_element = new_group(group.title, 0);
-						for (let c = 0; c < group.counters.length; c++) {
-							let counter = group.counters[c];
-							let counter_element = new_counter(group_element, counter.title, counter.value, counter.settings);
-							counter_target(counter_element);
-						}
+					load(JSON.parse(window.localStorage["counterData"]));
+				} else {
+					clear_groups();
+					new_group();
+				}
+			}
+
+			function save_json() {
+				load_save_json.value = JSON.stringify(get_save_data());
+				load_save_json_result_msg.className = "msg_output_success";
+				load_save_json_result_msg.innerText = "Successfully saved to JSON! Copy the below JSON string and put it somewhere safe!";
+			}
+
+			function load_json() {
+				if (load_save_json.value !== "") {
+					try {
+						load(JSON.parse(load_save_json.value));
+						load_save_json_result_msg.className = "msg_output_success";
+						load_save_json_result_msg.innerText = "Successfully loaded from JSON!";
+						load_save_json.value = "";
+						save_browser();
+					} catch (e) {
+						load_save_json_result_msg.className = "msg_output_fail";
+						load_save_json_result_msg.innerText = "Failed to parse JSON string. " + e.message;
 					}
 				} else {
-					new_group();
+					load_save_json_result_msg.className = "msg_output_fail";
+					load_save_json_result_msg.innerText = "Nothing to load. Paste a JSON string into the text area.";
 				}
 			}
 
@@ -537,21 +613,38 @@ class ModuleDefault extends BaseModule {
 				let longest = 0;
 				let entries = [];
 				for (let c = 0; c < counters.length; c++) {
-					let title = counters[c].querySelector("#title").innerText;
 					let ret = sum_counter(counters[c]);
+					let count = get_counter_value(counters[c]);
+					let multiplier = get_counter_multiplier(counters[c]);
+					let title = counters[c].querySelector("#title").innerText;
+					title = count + "x " + title;
+					if (multiplier > 1)
+						title += " (x" + multiplier + ")";
 					longest = Math.max(longest, title.length);
-					entries.push({ title: title, value: ret });
+					entries.push({ title: title, count: count, value: ret });
 					sum += ret;
 				}
 				for (let i = 0; i < entries.length; i++) {
 					let title = entries[i].title;
-					val += "  " + title + " ".repeat(longest - title.length) + " = " + entries[i].value + "\n";
+					val += "  " + title;
+					if (entries[i].count !== entries[i].value)
+						val += " ".repeat(longest - title.length) + " = " + entries[i].value + "\n";
+					else
+						val += "\n";
 				}
-				val += "\n" + group.querySelector("#title").innerText + " = " + sum + "\n==================================\n\n";
+				val += "\nSum of '" + group.querySelector("#title").innerText + "' = " + sum + "\n==================================\n\n";
 				if (return_result)
 					return [sum, val];
 				else
 					summary_output.value = val;
+			}
+
+			function get_counter_value(counter) {
+				return parseFloat(counter.querySelector("#count").innerText);
+			}
+
+			function get_counter_multiplier(counter) {
+				return parseFloat(counter.querySelector("#weight_multiplier").value);
 			}
 
 			function sum_counter(counter) {
@@ -564,7 +657,7 @@ class ModuleDefault extends BaseModule {
 				return 0;
 			}
 
-			load();
+			load_browser();
 		</script>
 		<?
 	}
